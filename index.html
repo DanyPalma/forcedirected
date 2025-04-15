@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movie Genre Network</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f8f9fa;
+            color: #343a40;
+        }
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 20px;
+        }
+        
+        h1 {
+            color: #495057;
+            margin-bottom: 5px;
+        }
+        
+        .description {
+            color: #6c757d;
+            margin-bottom: 20px;
+            text-align: center;
+            max-width: 800px;
+        }
+        
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        button {
+            background-color: #4361ee;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+        
+        button:hover {
+            background-color: #3a56d4;
+        }
+        
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 10px 0;
+        }
+        
+        .slider-label {
+            width: 160px;
+            font-size: 14px;
+        }
+        
+        input[type="range"] {
+            width: 200px;
+        }
+        
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 960px;
+            height: 600px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        svg {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .links line {
+            stroke-opacity: 0.6;
+        }
+        
+        .nodes circle {
+            stroke: #fff;
+            stroke-width: 1.5px;
+        }
+        
+        .node-label {
+            font-size: 12px;
+            pointer-events: none;
+            text-shadow: 
+                0 1px 0 #fff, 
+                1px 0 0 #fff, 
+                0 -1px 0 #fff, 
+                -1px 0 0 #fff;
+        }
+        
+        .tooltip {
+            position: absolute;
+            padding: 8px 12px;
+            font-size: 14px;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            border-radius: 4px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 10;
+        }
+        
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 20px;
+            gap: 15px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            font-size: 14px;
+        }
+        
+        .legend-color {
+            width: 15px;
+            height: 15px;
+            margin-right: 5px;
+            border-radius: 50%;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Movie Genre Network</h1>
+        <p class="description">
+            Explore connections between movie genres. Stronger connections (thicker lines) indicate genres that frequently appear together.
+            Node size represents the number of connections.
+        </p>
+        
+        <div class="controls">
+            <button id="resetButton">Reset View</button>
+            <button id="togglePhysics">Pause Physics</button>
+            
+            <div class="slider-container">
+                <span class="slider-label">Link Strength Threshold:</span>
+                <input type="range" id="thresholdSlider" min="0.5" max="0.9" step="0.05" value="0.5">
+                <span id="thresholdValue">0.5</span>
+            </div>
+            
+            <div class="slider-container">
+                <span class="slider-label">Node Spacing:</span>
+                <input type="range" id="chargeSlider" min="50" max="500" value="200">
+            </div>
+        </div>
+        
+        <div class="chart-container">
+            <div class="tooltip"></div>
+            <svg id="networkGraph"></svg>
+        </div>
+        
+        <div class="legend" id="legend"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <script>
+        // Parse the data
+        const data = {
+          "nodes": [
+            {
+              "id": "(no genres listed)",
+              "name": "(no genres listed)"
+            },
+            {
+              "id": "Action",
+              "name": "Action"
+            },
+            {
+              "id": "Adventure",
+              "name": "Adventure"
+            },
+            {
+              "id": "Animation",
+              "name": "Animation"
+            },
+            {
+              "id": "Children",
+              "name": "Children"
+            },
+            {
+              "id": "Comedy",
+              "name": "Comedy"
+            },
+            {
+              "id": "Crime",
+              "name": "Crime"
+            },
+            {
+              "id": "Documentary",
+              "name": "Documentary"
+            },
+            {
+              "id": "Drama",
+              "name": "Drama"
+            },
+            {
+              "id": "Fantasy",
+              "name": "Fantasy"
+            },
+            {
+              "id": "Film-Noir",
+              "name": "Film-Noir"
+            },
+            {
+              "id": "Horror",
+              "name": "Horror"
+            },
+            {
+              "id": "IMAX",
+              "name": "IMAX"
+            },
+            {
+              "id": "Musical",
+              "name": "Musical"
+            },
+            {
+              "id": "Mystery",
+              "name": "Mystery"
+            },
+            {
+              "id": "Romance",
+              "name": "Romance"
+            },
+            {
+              "id": "Sci-Fi",
+              "name": "Sci-Fi"
+            },
+            {
+              "id": "Thriller",
+              "name": "Thriller"
+            },
+            {
+              "id": "War",
+              "name": "War"
+            },
+            {
+              "id": "Western",
+              "name": "Western"
+            }
+          ],
+          "edges": [
+            {
+              "source": "Action",
+              "target": "Adventure",
+              "weight": 0.8124067106326871
+            },
+            {
+              "source": "Action",
+              "target": "Crime",
+              "weight": 0.673474727616177
+            },
+            {
+              "source": "Action",
+              "target": "Fantasy",
+              "weight": 0.5707764122256999
+            },
+            {
+              "source": "Action",
+              "target": "IMAX",
+              "weight": 0.575168729513752
+            },
+            {
+              "source": "Action",
+              "target": "Sci-Fi",
+              "weight": 0.8114345307395273
+            },
+            {
+              "source": "Action",
+              "target": "Thriller",
+              "weight": 0.8015688776771844
+            },
+            {
+              "source": "Adventure",
+              "target": "Animation",
+              "weight": 0.6822804241234193
+            },
+            {
+              "source": "Adventure",
+              "target": "Children",
+              "weight": 0.7167539643986324
+            },
+            {
+              "source": "Adventure",
+              "target": "Fantasy",
+              "weight": 0.8067704337914695
+            },
+            {
+              "source": "Adventure",
+              "target": "IMAX",
+              "weight": 0.6997841627524283
+            },
+            {
+              "source": "Adventure",
+              "target": "Sci-Fi",
+              "weight": 0.8058035389076594
+            },
+            {
+              "source": "Adventure",
+              "target": "Thriller",
+              "weight": 0.5721756578392246
+            },
+            {
+              "source": "Animation",
+              "target": "Children",
+              "weight": 0.8042739810495965
+            },
+            {
+              "source": "Animation",
+              "target": "Fantasy",
+              "weight": 0.7519403051601308
+            },
+            {
+              "source": "Animation",
+              "target": "Musical",
+              "weight": 0.563619205422273
+            },
+            {
+              "source": "Children",
+              "target": "Comedy",
+              "weight": 0.5662078042235518
+            },
+            {
+              "source": "Children",
+              "target": "Fantasy",
+              "weight": 0.7571588550956764
+            },
+            {
+              "source": "Children",
+              "target": "Musical",
+              "weight": 0.7343969142379372
+            },
+            {
+              "source": "Comedy",
+              "target": "Crime",
+              "weight": 0.5407263870763414
+            },
+            {
+              "source": "Comedy",
+              "target": "Drama",
+              "weight": 0.5867414820078093
+            },
+            {
+              "source": "Comedy",
+              "target": "Fantasy",
+              "weight": 0.5238963785018603
+            },
+            {
+              "source": "Comedy",
+              "target": "Musical",
+              "weight": 0.5481026669757073
+            },
+            {
+              "source": "Comedy",
+              "target": "Romance",
+              "weight": 0.6838393023194215
+            },
+            {
+              "source": "Crime",
+              "target": "Drama",
+              "weight": 0.7187193255072136
+            },
+            {
+              "source": "Crime",
+              "target": "Mystery",
+              "weight": 0.7393673209540246
+            },
+            {
+              "source": "Crime",
+              "target": "Thriller",
+              "weight": 0.8311693910271446
+            },
+            {
+              "source": "Drama",
+              "target": "Mystery",
+              "weight": 0.6964013251078701
+            },
+            {
+              "source": "Drama",
+              "target": "Romance",
+              "weight": 0.7354979645285631
+            },
+            {
+              "source": "Drama",
+              "target": "Thriller",
+              "weight": 0.6306122529944894
+            },
+            {
+              "source": "Drama",
+              "target": "War",
+              "weight": 0.6608660675017672
+            },
+            {
+              "source": "Fantasy",
+              "target": "IMAX",
+              "weight": 0.5810108509552655
+            },
+            {
+              "source": "Fantasy",
+              "target": "Musical",
+              "weight": 0.547049544699922
+            },
+            {
+              "source": "Fantasy",
+              "target": "Sci-Fi",
+              "weight": 0.608202135187179
+            },
+            {
+              "source": "Horror",
+              "target": "Mystery",
+              "weight": 0.5598747785876834
+            },
+            {
+              "source": "Horror",
+              "target": "Thriller",
+              "weight": 0.6720497147070599
+            },
+            {
+              "source": "IMAX",
+              "target": "Sci-Fi",
+              "weight": 0.5868948780522735
+            },
+            {
+              "source": "Musical",
+              "target": "Romance",
+              "weight": 0.5689968252134874
+            },
+            {
+              "source": "Mystery",
+              "target": "Thriller",
+              "weight": 0.8111729364390621
+            },
+            {
+              "source": "Sci-Fi",
+              "target": "Thriller",
+              "weight": 0.649547741841727
+            },
+            {
+              "source": "War",
+              "target": "Western",
+              "weight": 0.5973582418821654
+            }
+          ]
+        };
+
+        // Process the data to the format D3 expects
+        const links = data.edges.map(d => ({
+            source: d.source,
+            target: d.target,
+            weight: d.weight
+        }));
+
+        // Calculate node connections for sizing
+        const nodeConnections = {};
+        data.nodes.forEach(node => {
+            nodeConnections[node.id] = 0;
+        });
+
+        links.forEach(link => {
+            nodeConnections[link.source] = (nodeConnections[link.source] || 0) + 1;
+            nodeConnections[link.target] = (nodeConnections[link.target] || 0) + 1;
+        });
+
+        // Add connection count to nodes
+        const nodes = data.nodes.map(node => ({
+            id: node.id,
+            name: node.name,
+            connections: nodeConnections[node.id] || 0
+        }));
+
+        // Color scale for nodes based on genre clusters
+        const genreClusters = [
+            { name: "Action & Adventure", genres: ["Action", "Adventure", "Sci-Fi", "IMAX"] },
+            { name: "Family & Animation", genres: ["Animation", "Children", "Musical"] },
+            { name: "Drama & Romance", genres: ["Drama", "Romance", "War"] },
+            { name: "Thriller & Crime", genres: ["Thriller", "Crime", "Mystery", "Horror"] },
+            { name: "Comedy & Fantasy", genres: ["Comedy", "Fantasy"] },
+            { name: "Other", genres: ["Documentary", "Film-Noir", "Western", "(no genres listed)"] }
+        ];
+
+        // Assign clusters to nodes
+        nodes.forEach(node => {
+            for (const cluster of genreClusters) {
+                if (cluster.genres.includes(node.id)) {
+                    node.cluster = cluster.name;
+                    break;
+                }
+            }
+            // Default cluster
+            if (!node.cluster) {
+                node.cluster = "Other";
+            }
+        });
+
+        // Color scale
+        const colorScale = d3.scaleOrdinal()
+            .domain(genreClusters.map(c => c.name))
+            .range(["#ff6b6b", "#48dbfb", "#1dd1a1", "#5f27cd", "#feca57", "#576574"]);
+
+        // Set up the SVG
+        const svg = d3.select("#networkGraph");
+        const width = svg.node().parentNode.clientWidth;
+        const height = svg.node().parentNode.clientHeight;
+        const tooltip = d3.select(".tooltip");
+
+        // Create the force simulation
+        let simulation = d3.forceSimulation(nodes)
+            .force("link", d3.forceLink(links).id(d => d.id).distance(d => 200 - d.weight * 100))
+            .force("charge", d3.forceManyBody().strength(-200))
+            .force("center", d3.forceCenter(width / 2, height / 2))
+            .force("collision", d3.forceCollide().radius(d => getNodeRadius(d) + 10));
+
+        // Create the link elements
+        const link = svg.append("g")
+            .attr("class", "links")
+            .selectAll("line")
+            .data(links)
+            .enter().append("line")
+            .attr("stroke-width", d => Math.max(1, d.weight * 5))
+            .attr("stroke", "#aaa");
+
+        // Create the node elements
+        const node = svg.append("g")
+            .attr("class", "nodes")
+            .selectAll("circle")
+            .data(nodes)
+            .enter().append("circle")
+            .attr("r", getNodeRadius)
+            .attr("fill", d => colorScale(d.cluster))
+            .attr("stroke", "#fff")
+            .attr("stroke-width", 2)
+            .call(d3.drag()
+                .on("start", dragstarted)
+                .on("drag", dragged)
+                .on("end", dragended));
+
+        // Add node labels
+        const label = svg.append("g")
+            .attr("class", "labels")
+            .selectAll("text")
+            .data(nodes)
+            .enter().append("text")
+            .attr("class", "node-label")
+            .attr("text-anchor", "middle")
+            .attr("dy", 4)
+            .text(d => d.name);
+
+        // Add node interaction
+        node.on("mouseover", function(event, d) {
+                // Highlight connected nodes and links
+                const connectedNodeIds = links
+                    .filter(l => l.source.id === d.id || l.target.id === d.id)
+                    .flatMap(l => [l.source.id, l.target.id]);
+                
+                node.attr("opacity", n => connectedNodeIds.includes(n.id) || n.id === d.id ? 1 : 0.3);
+                link.attr("opacity", l => l.source.id === d.id || l.target.id === d.id ? 1 : 0.1);
+                label.attr("opacity", n => connectedNodeIds.includes(n.id) || n.id === d.id ? 1 : 0.3);
+                
+                // Show tooltip
+                const connections = links
+                    .filter(l => l.source.id === d.id || l.target.id === d.id)
+                    .map(l => {
+                        const otherNode = l.source.id === d.id ? l.target.name : l.source.name;
+                        return `${otherNode} (${(l.weight * 100).toFixed(1)}%)`;
+                    })
+                    .sort();
+                
+                tooltip.style("opacity", 1)
+                    .html(`<strong>${d.name}</strong><br>
+                           Connections: ${d.connections}<br>
+                           <hr style="margin: 5px 0">
+                           ${connections.join("<br>")}`)
+                    .style("left", (event.pageX + 10) + "px")
+                    .style("top", (event.pageY - 28) + "px");
+            })
+            .on("mouseout", function() {
+                node.attr("opacity", 1);
+                link.attr("opacity", 1);
+                label.attr("opacity", 1);
+                tooltip.style("opacity", 0);
+            })
+            .on("click", function(event, d) {
+                // Center and zoom to node
+                const scale = 1.5;
+                const x = width / 2 - scale * d.x;
+                const y = height / 2 - scale * d.y;
+                
+                svg.transition()
+                    .duration(750)
+                    .attr("transform", `translate(${x},${y}) scale(${scale})`);
+            });
+
+        // Update positions on each tick
+        simulation.on("tick", () => {
+            link
+                .attr("x1", d => d.source.x)
+                .attr("y1", d => d.source.y)
+                .attr("x2", d => d.target.x)
+                .attr("y2", d => d.target.y);
+
+            node
+                .attr("cx", d => d.x)
+                .attr("cy", d => d.y);
+
+            label
+                .attr("x", d => d.x)
+                .attr("y", d => d.y);
+        });
+
+        // Function to get node radius based on connections
+        function getNodeRadius(d) {
+            return Math.max(5, Math.min(20, 5 + d.connections * 2));
+        }
+
+        // Drag functions
+        function dragstarted(event, d) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+        }
+
+        function dragged(event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+        }
+
+        function dragended(event, d) {
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+        }
+
+        // Reset view button
+        d3.select("#resetButton").on("click", function() {
+            svg.transition()
+                .duration(750)
+                .attr("transform", "translate(0,0) scale(1)");
+        });
+
+        // Toggle physics
+        let physicsActive = true;
+        d3.select("#togglePhysics").on("click", function() {
+            if (physicsActive) {
+                simulation.stop();
+                d3.select(this).text("Resume Physics");
+            } else {
+                simulation.restart();
+                d3.select(this).text("Pause Physics");
+            }
+            physicsActive = !physicsActive;
+        });
+
+        // Threshold slider
+        d3.select("#thresholdSlider").on("input", function() {
+            const threshold = +this.value;
+            d3.select("#thresholdValue").text(threshold.toFixed(2));
+            
+            // Filter links based on threshold
+            link.attr("display", d => d.weight >= threshold ? "inline" : "none");
+            
+            // Restart simulation with updated links
+            simulation.force("link").links(links.filter(d => d.weight >= threshold));
+            simulation.alpha(0.3).restart();
+        });
+
+        // Charge slider for node spacing
+        d3.select("#chargeSlider").on("input", function() {
+            const charge = -this.value;
+            simulation.force("charge").strength(charge);
+            simulation.alpha(0.3).restart();
+        });
+
+        // Add legend
+        const legend = d3.select("#legend");
+        genreClusters.forEach(cluster => {
+            const item = legend.append("div")
+                .attr("class", "legend-item");
+                
+            item.append("div")
+                .attr("class", "legend-color")
+                .style("background-color", colorScale(cluster.name));
+                
+            item.append("span")
+                .text(cluster.name);
+        });
+
+        // Add zoom behavior
+        const zoom = d3.zoom()
+            .scaleExtent([0.1, 4])
+            .on("zoom", (event) => {
+                svg.attr("transform", event.transform);
+            });
+
+        svg.call(zoom);
+    </script>
+</body>
+</html>
